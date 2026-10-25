@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CatatanKu 3D - Aplikasi Catatan & Pengingat Offline</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            bg: '#F8FAFC',
+                            sec: '#EFF6FF',
+                            primary: '#2563EB',
+                            wa: '#25D366',
+                            safe: '#10B981',
+                            warn: '#F59E0B',
+                            danger: '#EF4444',
+                            text: '#1E293B',
+                            muted: '#64748B',
+                            border: '#E2E8F0'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #F8FAFC;
+            color: #1E293B;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Soft 3D Neumorphic Shadows & Borders */
+        .card-3d {
+            background: #FFFFFF;
+            border-radius: 20px;
+            box-shadow: 8px 8px 18px rgba(166, 180, 200, 0.25), 
+                        -8px -8px 18px rgba(255, 255, 255, 0.9),
+                        inset 1px 1px 2px rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card-3d:hover {
+            transform: translateY(-4px) scale(1.005);
+            box-shadow: 12px 14px 24px rgba(166, 180, 200, 0.35), 
+                        -8px -8px 20px rgba(255, 255, 255, 1);
+        }
+
+        .btn-3d {
+            border-radius: 14px;
+            box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.12), 
+                        -3px -3px 8px rgba(255, 255, 255, 0.7),
+                        inset 0px 1px 1px rgba(255, 255, 255, 0.4);
+            transition: all 0.15s ease;
+        }
+
+        .btn-3d:active {
+            transform: translateY(2px);
+            box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.2) inset;
+        }
+
+        .input-3d {
+            background: #F8FAFC;
+            border: 1.5px solid #E2E8F0;
+            box-shadow: inset 2px 2px 5px rgba(166, 180, 200, 0.15), inset -2px -2px 5px #FFFFFF;
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+
+        .input-3d:focus {
+            outline: none;
+            border-color: #2563EB;
+            box-shadow: inset 2px 2px 4px rgba(37, 99, 235, 0.1), 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        /* Switch Toggle 3D */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #2563EB;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #2563EB;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #F8FAFC; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col pb-24 md:pb-6">
+
+    <!-- HEADER / APP BAR -->
+    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-3 shadow-sm">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-400 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
+                    <i class="fas fa-book-bookmark text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-800 leading-tight">CatatanKu</h1>
+                    <p class="text-xs text-slate-500 font-medium">Offline • 3D Smart Reminder</p>
+                </div>
+            </div>
+            <div id="wib-clock" class="text-right text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                00:00:00 WIB
+            </div>
+        </div>
+    </header>
+
+    <!-- NOTIFICATION TOAST -->
+    <div id="toast" class="fixed top-16 right-4 z-50 transform translate-x-full transition-transform duration-300 ease-out max-w-sm w-full">
+        <div id="toast-content" class="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700">
+            <i id="toast-icon" class="fas fa-info-circle text-blue-400 text-xl"></i>
+            <div class="flex-1 text-sm font-medium" id="toast-message">Pesan Notifikasi</div>
+            <button onclick="hideToast()" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <!-- MAIN CONTAINER WITH PAGE VIEWS -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- ================= PAGE 1: BERANDA ================= -->
+        <section id="page-beranda" class="space-y-6">
+            <!-- Ringkasan Stat Bar 3D -->
+            <div class="grid grid-cols-3 gap-3 md:gap-4">
+                <div class="card-3d p-4 text-center">
+                    <div class="text-xs font-semibold text-slate-500 mb-1">Total Catatan</div>
+                    <div id="stat-total" class="text-2xl font-extrabold text-blue-600">0</div>
+                </div>
+                <div class="card-3d p-4 text-center border-l-4 border-l-amber-500">
+                    <div class="text-xs font-semibold text-amber-600 mb-1">Peringatan H-1</div>
+                    <div id="stat-h1" class="text-2xl font-extrabold text-amber-500">0</div>
+                </div>
+                <div class="card-3d p-4 text-center border-l-4 border-l-emerald-500">
+                    <div class="text-xs font-semibold text-emerald-600 mb-1">Mendatang / Aman</div>
+                    <div id="stat-active" class="text-2xl font-extrabold text-emerald-600">0</div>
+                </div>
+            </div>
+
+            <!-- Banner Urgent H-1 Alert -->
+            <div id="banner-urgent" class="hidden card-3d p-4 bg-amber-50 border-amber-200 border-l-8 border-l-amber-500 flex items-start gap-3">
+                <div class="p-2.5 bg-amber-500 text-white rounded-xl shadow-md">
+                    <i class="fas fa-triangle-exclamation text-xl animate-bounce"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-amber-900 text-sm md:text-base">Perhatian! Catatan H-1 Besok</h3>
+                    <p id="banner-urgent-text" class="text-xs md:text-sm text-amber-800 mt-0.5">Ada catatan yang akan jatuh tempo besok. Segera periksa!</p>
+                </div>
+            </div>
+
+            <!-- Header Daftar & Pencarian -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-list-check text-blue-600"></i> Daftar Semua Catatan
+                </h2>
+                <div class="relative flex-1 sm:max-w-xs">
+                    <i class="fas fa-search absolute left-3 top-3 text-slate-400 text-sm"></i>
+                    <input type="text" id="search-input" onkeyup="renderBeranda()" placeholder="Cari nomor, judul, isi..." class="input-3d w-full pl-9 pr-3 py-2 text-sm text-slate-700">
+                </div>
+            </div>
+
+            <!-- Container Kartu Catatan -->
+            <div id="notes-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Diisi secara dinamis oleh JS -->
+            </div>
+        </section>
+
+        <!-- ================= PAGE 2: TAMBAH / EDIT CATATAN ================= -->
+        <section id="page-tambah" class="hidden space-y-6">
+            <div class="card-3d p-6 md:p-8">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+                    <h2 id="form-title" class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-plus-circle text-blue-600"></i> Buat Catatan Baru
+                    </h2>
+                    <span id="form-ct-num" class="px-3 py-1 bg-blue-50 text-blue-700 font-extrabold text-xs rounded-full border border-blue-200">
+                        CT-AUTONUM
+                    </span>
+                </div>
+
+                <form id="note-form" onsubmit="event.preventDefault(); saveNote();" class="space-y-4">
+                    <input type="hidden" id="note-id">
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Judul Catatan *</label>
+                        <input type="text" id="input-title" required placeholder="Contoh: Rapat Koordinasi Proyek Kebersihan" class="input-3d w-full px-4 py-3 text-slate-800 font-bold text-base">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Isi Catatan Lengkap *</label>
+                        <textarea id="input-content" required rows="4" placeholder="Tuliskan rincian kegiatan atau informasi penting di sini..." class="input-3d w-full px-4 py-3 text-slate-700 text-sm leading-relaxed"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tanggal Kegiatan / Pengingat *</label>
+                            <input type="date" id="input-date" required class="input-3d w-full px-4 py-2.5 text-slate-700 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Waktu Pelaksanaan (WIB) *</label>
+                            <input type="time" id="input-time" required class="input-3d w-full px-4 py-2.5 text-slate-700 text-sm">
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-200 my-4">
+
+                    <!-- Info Kontak Tujuan (Otomatis dari Pengaturan) -->
+                    <div class="bg-blue-50/70 border border-blue-100 rounded-2xl p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fas fa-address-book"></i> Tujuan Notifikasi Notula
+                            </span>
+                            <a href="javascript:void(0)" onclick="switchPage('pengaturan')" class="text-xs font-semibold text-blue-600 hover:underline">Ubah di Pengaturan</a>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div class="bg-white p-2.5 rounded-xl border border-blue-100 flex items-center gap-2">
+                                <i class="fas fa-envelope text-blue-600"></i>
+                                <span class="text-slate-500">Email:</span>
+                                <span id="form-target-email" class="font-bold text-slate-800 truncate">Belum Diset</span>
+                            </div>
+                            <div class="bg-white p-2.5 rounded-xl border border-blue-100 flex items-center gap-2">
+                                <i class="fab fa-whatsapp text-emerald-600 text-sm"></i>
+                                <span class="text-slate-500">WhatsApp:</span>
+                                <span id="form-target-wa" class="font-bold text-slate-800 truncate">Belum Diset</span>
+                            </div>
+                        </div>
+
+                        <!-- Toggle Kirim Otomatis saat Simpan -->
+                        <div class="flex items-center justify-between pt-2 border-t border-blue-200/60">
+                            <label for="input-auto-send" class="text-xs font-medium text-slate-700 cursor-pointer">
+                                🚀 Langsung Buka WA & Email Saat Simpan?
+                            </label>
+                            <div class="relative inline-block w-10 align-middle select-none">
+                                <input type="checkbox" id="input-auto-send" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 transition-all duration-200">
+                                <label for="input-auto-send" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kotak Pratinjau Format Pesan -->
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">Pratinjau Format Pesan Notifikasi:</label>
+                        <div id="preview-box" class="bg-slate-900 text-emerald-400 p-3.5 rounded-xl text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto leading-relaxed border border-slate-800 shadow-inner">
+                            [Pratinjau pesan akan muncul di sini...]
+                        </div>
+                    </div>
+
+                    <!-- Tombol Aksi -->
+                    <div class="flex flex-wrap items-center justify-end gap-3 pt-4">
+                        <button type="button" onclick="resetForm(); switchPage('beranda');" class="btn-3d px-5 py-2.5 bg-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-300">
+                            Batal
+                        </button>
+                        <button type="button" onclick="sendViaMailFromForm()" class="btn-3d px-4 py-2.5 bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 flex items-center gap-2">
+                            <i class="fas fa-envelope"></i> Kirim Email
+                        </button>
+                        <button type="button" onclick="sendViaWAFromForm()" class="btn-3d px-4 py-2.5 bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 flex items-center gap-2">
+                            <i class="fab fa-whatsapp text-lg"></i> Kirim WA
+                        </button>
+                        <button type="submit" class="btn-3d px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm hover:from-blue-700 hover:to-indigo-700 flex items-center gap-2 shadow-lg shadow-blue-500/20">
+                            <i class="fas fa-floppy-disk"></i> Simpan Catatan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ================= PAGE 3: KALENDER & PENGINGAT ================= -->
+        <section id="page-kalender" class="hidden space-y-6">
+            <div class="card-3d p-6">
+                <!-- Navigasi Bulan/Tahun Kalender -->
+                <div class="flex items-center justify-between mb-6">
+                    <button onclick="changeMonth(-1)" class="btn-3d w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 flex items-center justify-center">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <h3 id="calendar-month-year" class="text-base md:text-lg font-extrabold text-slate-800">
+                        Januari 2026
+                    </h3>
+                    <button onclick="changeMonth(1)" class="btn-3d w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 flex items-center justify-center">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <!-- Grid Hari & Tanggal -->
+                <div class="grid grid-cols-7 text-center font-bold text-xs text-slate-400 uppercase tracking-wider mb-2">
+                    <div class="py-2 text-red-500">Min</div>
+                    <div class="py-2">Sen</div>
+                    <div class="py-2">Sel</div>
+                    <div class="py-2">Rab</div>
+                    <div class="py-2">Kam</div>
+                    <div class="py-2">Jum</div>
+                    <div class="py-2 text-blue-500">Sab</div>
+                </div>
+                <div id="calendar-days" class="grid grid-cols-7 gap-1.5 md:gap-2">
+                    <!-- Tanggal di-render dinamis oleh JS -->
+                </div>
+
+                <!-- Legenda Warna Status Kalender -->
+                <div class="mt-6 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-slate-600">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-blue-600 inline-block"></span> Memiliki Catatan
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-amber-400 inline-block"></span> Status H-1
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Hari H
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-red-400 inline-block"></span> Sudah Lewat
+                    </div>
+                </div>
+            </div>
+
+            <!-- List Catatan Terfilter Berdasarkan Tanggal yang Diklik -->
+            <div class="space-y-3">
+                <h3 id="selected-date-title" class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-calendar-day text-blue-600"></i> Catatan Pada Tanggal Ini
+                </h3>
+                <div id="calendar-notes-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Kartu catatan filter tanggal -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= PAGE 4: PENGATURAN KONTAK & NADA DERING ================= -->
+        <section id="page-pengaturan" class="hidden space-y-6">
+            
+            <!-- Form Pengaturan Kontak Global -->
+            <div class="card-3d p-6">
+                <h2 class="text-lg font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+                    <i class="fas fa-address-card text-blue-600"></i> Pengaturan Kontak Tujuan Global
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                            📧 Alamat Email Utama Tujuan
+                        </label>
+                        <input type="email" id="setting-email" placeholder="Contoh: bos.manajer@perusahaan.com" class="input-3d w-full px-4 py-2.5 text-slate-800 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                            💚 Nomor WhatsApp Utama Tujuan (Format HP / Internasional)
+                        </label>
+                        <input type="text" id="setting-wa" placeholder="Contoh: 081234567890 atau +62 812-3456-7890" class="input-3d w-full px-4 py-2.5 text-slate-800 text-sm">
+                        <p class="text-xs text-slate-400 mt-1">Sistem otomatis mengubah '08xxx' menjadi '628xxx' agar link WhatsApp Web/App selalu valid.</p>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <label for="setting-auto-send-default" class="text-xs font-semibold text-slate-700 cursor-pointer">
+                            Otomatis aktifkan opsi "Buka WA & Email Saat Simpan" di form baru?
+                        </label>
+                        <div class="relative inline-block w-10 align-middle select-none">
+                            <input type="checkbox" id="setting-auto-send-default" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 transition-all duration-200">
+                            <label for="setting-auto-send-default" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button onclick="saveContactSettings()" class="btn-3d px-5 py-2.5 bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 flex items-center gap-2">
+                            <i class="fas fa-floppy-disk"></i> Simpan Kontak Pengaturan
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Nada Dering Alarm H-1 (Web Audio API Synthesizer) -->
+            <div class="card-3d p-6">
+                <h2 class="text-lg font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+                    <i class="fas fa-bell text-amber-500"></i> Nada Dering & Alarm Pengingat H-1
+                </h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Pilih Nada Dering Alarm (100% Offline)</label>
+                        <div class="flex gap-2">
+                            <select id="setting-ringtone" class="input-3d flex-1 px-4 py-2.5 text-slate-800 text-sm font-semibold">
+                                <option value="chime">🎵 Soft Chime (Lembut & Elegan)</option>
+                                <option value="digital">📟 Digital Alarm (Tegas & Jelas)</option>
+                                <option value="gentle">🔔 Gentle Bell (Loncat Jernih)</option>
+                                <option value="beep">📻 Synth Beep (Modern Double Beep)</option>
+                                <option value="marimba">🎼 Marimba Echo (Melodis Tropis)</option>
+                                <option value="radar">📡 Radar Pulse (Fokus Tinggi)</option>
+                                <option value="retrowave">🎮 Retro Wave (Game Synth 8-Bit)</option>
+                                <option value="crystal">💎 Crystal Drop (Suara Air Jernih)</option>
+                                <option value="classic">☎️ Classic Phone (Telepon Rumah Oldschool)</option>
+                                <option value="silent">🔇 Mode Senyap (Hanya Notifikasi Layar)</option>
+                            </select>
+                            <button onclick="testCurrentRingtone()" class="btn-3d px-4 py-2.5 bg-amber-500 text-white font-bold text-sm hover:bg-amber-600 flex items-center gap-1.5 shadow-md shadow-amber-500/20" title="Putar Contoh Suara">
+                                <i class="fas fa-play"></i> Tes Suara
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Volume Alarm</label>
+                            <input type="range" id="setting-volume" min="0.1" max="1" step="0.1" value="0.8" class="w-full accent-blue-600">
+                        </div>
+                        <div class="flex items-center justify-between pt-4 sm:pt-0">
+                            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Putar Suara Berulang (Looping)?</span>
+                            <div class="relative inline-block w-10 align-middle select-none">
+                                <input type="checkbox" id="setting-loop-ringtone" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 transition-all duration-200">
+                                <label for="setting-loop-ringtone" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button onclick="requestNotificationPermission()" class="btn-3d px-4 py-2 bg-slate-800 text-white font-semibold text-xs hover:bg-slate-900 flex items-center gap-2">
+                            <i class="fas fa-shield-halved"></i> Minta Izin Notifikasi Browser HP / Laptop
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kelola Data Backup & Reset -->
+            <div class="card-3d p-6 border-l-4 border-l-slate-400">
+                <h2 class="text-lg font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+                    <i class="fas fa-database text-slate-600"></i> Manajemen Data & Sistem
+                </h2>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="exportDataJSON()" class="btn-3d px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-2">
+                        <i class="fas fa-download"></i> Ekspor Backup JSON
+                    </button>
+                    <label class="btn-3d px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-2 cursor-pointer">
+                        <i class="fas fa-upload"></i> Impor Backup JSON
+                        <input type="file" id="import-file" onchange="importDataJSON(event)" class="hidden" accept=".json">
+                    </label>
+                    <button onclick="confirmResetAllData()" class="btn-3d px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-semibold text-xs flex items-center gap-2 border border-red-200 ml-auto">
+                        <i class="fas fa-trash-can"></i> Hapus Semua Data
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info Aplikasi -->
+            <div class="text-center text-xs text-slate-400 pt-2">
+                <p>CatatanKu 3D Offline App v2.5 • Bekerja 100% Tanpa Internet</p>
+                <p class="mt-0.5">Waktu Server Lokal: WIB (Asia/Jakarta)</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FLOATING ACTION BUTTON (FAB) TAMBAH CATATAN -->
+    <button onclick="openFormNew()" class="fixed bottom-20 right-5 md:bottom-8 md:right-8 z-40 w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center text-xl shadow-xl shadow-blue-600/40 hover:scale-110 active:scale-95 transition-all duration-200">
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <!-- NAVIGATION BAR BAWAH (PERSISTENT NAV BAR) -->
+    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-md border-t border-slate-200 px-4 py-2">
+        <div class="max-w-md mx-auto flex items-center justify-around">
+            <button onclick="switchPage('beranda')" id="nav-beranda" class="nav-btn flex flex-col items-center py-1 px-3 text-blue-600 font-bold transition">
+                <i class="fas fa-house text-lg mb-0.5"></i>
+                <span class="text-[11px]">Beranda</span>
+            </button>
+            <button onclick="openFormNew()" id="nav-tambah" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-blue-600 font-medium transition">
+                <i class="fas fa-circle-plus text-lg mb-0.5"></i>
+                <span class="text-[11px]">Tambah</span>
+            </button>
+            <button onclick="switchPage('kalender')" id="nav-kalender" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-blue-600 font-medium transition">
+                <i class="fas fa-calendar-days text-lg mb-0.5"></i>
+                <span class="text-[11px]">Kalender</span>
+            </button>
+            <button onclick="switchPage('pengaturan')" id="nav-pengaturan" class="nav-btn flex flex-col items-center py-1 px-3 text-slate-400 hover:text-blue-600 font-medium transition">
+                <i class="fas fa-gear text-lg mb-0.5"></i>
+                <span class="text-[11px]">Pengaturan</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- MODAL CUSTOM CONFIRM / DIALOG -->
+    <div id="modal-backdrop" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="card-3d bg-white max-w-sm w-full p-6 text-center space-y-4">
+            <div id="modal-icon" class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 id="modal-title" class="font-bold text-slate-800 text-base">Konfirmasi Konfirmasi</h3>
+            <p id="modal-body" class="text-xs text-slate-600 leading-relaxed">Apakah Anda yakin ingin melakukan tindakan ini?</p>
+            <div class="flex items-center justify-center gap-3 pt-2">
+                <button onclick="closeModalDialog()" class="btn-3d px-4 py-2 bg-slate-200 text-slate-700 font-semibold text-xs">Batal</button>
+                <button id="modal-confirm-btn" class="btn-3d px-4 py-2 bg-red-600 text-white font-semibold text-xs">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- SCRIPT LOGIKA LENGKAP APLIKASI -->
+    <script>
+        /* ================= STATE GLOBAL & LOCAL STORAGE ================= */
+        let notesData = JSON.parse(localStorage.getItem('catatanku_notes')) || [];
+        let globalSettings = JSON.parse(localStorage.getItem('catatanku_settings')) || {
+            targetEmail: '',
+            targetWa: '',
+            autoSendDefault: false,
+            ringtone: 'chime',
+            volume: 0.8,
+            loopRingtone: false
+        };
+        let nextNoteCounter = parseInt(localStorage.getItem('catatanku_counter')) || 1;
+        
+        let currentCalendarDate = new Date();
+        let selectedCalendarDateStr = getFormattedDateStr(new Date());
+
+        /* ================= INITIALIZATION ================= */
+        window.addEventListener('DOMContentLoaded', () => {
+            initClockWIB();
+            loadSettingsToUI();
+            checkAndFixCounters();
+            renderBeranda();
+            renderCalendar();
+            startReminderIntervalChecker();
+            
+            // Setup realtime preview listener
+            document.getElementById('input-title').addEventListener('input', updateFormPreview);
+            document.getElementById('input-content').addEventListener('input', updateFormPreview);
+            document.getElementById('input-date').addEventListener('change', updateFormPreview);
+            document.getElementById('input-time').addEventListener('change', updateFormPreview);
+        });
+
+        /* ================= ZONA WAKTU WIB & JAM REALTIME ================= */
+        function initClockWIB() {
+            setInterval(() => {
+                const now = new Date();
+                // Format WIB (UTC+7)
+                const options = { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+                const timeString = new Intl.DateTimeFormat('id-ID', options).format(now);
+                document.getElementById('wib-clock').innerText = `${timeString.replace(/\./g, ':')} WIB`;
+            }, 1000);
+        }
+
+        function getFormattedDateStr(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        /* ================= KONVERSI FORMAT NOMOR WA INTERNASIONAL ================= */
+        function formatWAInternational(phoneStr) {
+            if (!phoneStr) return '';
+            let cleaned = phoneStr.replace(/[^0-9]/g, '');
+            if (cleaned.startsWith('0')) {
+                cleaned = '62' + cleaned.substring(1);
+            }
+            return cleaned;
+        }
+
+        /* ================= PERHITUNGAN STATUS CATATAN ================= */
+        // Status: 'h1' (Kuning), 'today' (Hijau), 'expired' (Merah), 'safe' (Hijau/Normal)
+        function calculateStatus(eventDateStr, eventTimeStr) {
+            if (!eventDateStr) return { code: 'safe', label: '✅ Aman', colorClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const targetDate = new Date(eventDateStr + 'T00:00:00');
+            targetDate.setHours(0, 0, 0, 0);
+
+            const diffTime = targetDate - today;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 1) {
+                return { code: 'h1', label: '⚠️ H-1 — Batas Waktu Besok!', colorClass: 'bg-amber-100 text-amber-900 border-amber-300 font-bold' };
+            } else if (diffDays === 0) {
+                return { code: 'today', label: '✅ Hari Ini!', colorClass: 'bg-emerald-100 text-emerald-900 border-emerald-400 font-bold' };
+            } else if (diffDays < 0) {
+                return { code: 'expired', label: '❌ Sudah Lewat', colorClass: 'bg-red-100 text-red-800 border-red-300' };
+            } else {
+                return { code: 'safe', label: '✅ Aman / Mendatang', colorClass: 'bg-slate-100 text-slate-700 border-slate-200' };
+            }
+        }
+
+        /* ================= NAVIGASI HALAMAN (SPA) ================= */
+        function switchPage(pageId) {
+            ['beranda', 'tambah', 'kalender', 'pengaturan'].forEach(id => {
+                const pageEl = document.getElementById(`page-${id}`);
+                const navBtn = document.getElementById(`nav-${id}`);
+                
+                if (id === pageId) {
+                    pageEl.classList.remove('hidden');
+                    if(navBtn) {
+                        navBtn.classList.add('text-blue-600', 'font-bold');
+                        navBtn.classList.remove('text-slate-400', 'font-medium');
+                    }
+                } else {
+                    pageEl.classList.add('hidden');
+                    if(navBtn) {
+                        navBtn.classList.remove('text-blue-600', 'font-bold');
+                        navBtn.classList.add('text-slate-400', 'font-medium');
+                    }
+                }
+            });
+
+            if (pageId === 'beranda') renderBeranda();
+            if (pageId === 'kalender') renderCalendar();
+            if (pageId === 'pengaturan') loadSettingsToUI();
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        /* ================= RENDER HALAMAN BERANDA ================= */
+        function renderBeranda() {
+            const container = document.getElementById('notes-container');
+            const searchKeyword = document.getElementById('search-input').value.toLowerCase();
+            container.innerHTML = '';
+
+            let totalCount = notesData.length;
+            let h1Count = 0;
+            let activeCount = 0;
+            let urgentNotesList = [];
+
+            const filteredNotes = notesData.filter(note => {
+                const status = calculateStatus(note.eventDate, note.eventTime);
+                if (status.code === 'h1') h1Count++;
+                if (status.code === 'safe' || status.code === 'today') activeCount++;
+                if (status.code === 'h1') urgentNotesList.push(note);
+
+                const matchTitle = note.title.toLowerCase().includes(searchKeyword);
+                const matchContent = note.content.toLowerCase().includes(searchKeyword);
+                const matchNum = note.number.toLowerCase().includes(searchKeyword);
+                return matchTitle || matchContent || matchNum;
+            });
+
+            // Update statistik
+            document.getElementById('stat-total').innerText = totalCount;
+            document.getElementById('stat-h1').innerText = h1Count;
+            document.getElementById('stat-active').innerText = activeCount;
+
+            // Banner Urgent
+            const bannerUrgent = document.getElementById('banner-urgent');
+            if (h1Count > 0) {
+                bannerUrgent.classList.remove('hidden');
+                document.getElementById('banner-urgent-text').innerText = `Ada ${h1Count} catatan kegiatan (contoh: "${urgentNotesList[0].title}") yang jatuh tempo BESOK!`;
+            } else {
+                bannerUrgent.classList.add('hidden');
+            }
+
+            if (filteredNotes.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-1 md:col-span-2 text-center py-12 card-3d">
+                        <i class="fas fa-folder-open text-4xl text-slate-300 mb-3"></i>
+                        <p class="text-sm font-semibold text-slate-500">Tidak ada catatan ditemukan.</p>
+                        <button onclick="openFormNew()" class="mt-3 btn-3d px-4 py-2 bg-blue-600 text-white text-xs font-bold inline-flex items-center gap-2">
+                            <i class="fas fa-plus"></i> Buat Catatan Baru
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredNotes.forEach(note => {
+                const status = calculateStatus(note.eventDate, note.eventTime);
+                
+                const card = document.createElement('div');
+                card.className = `card-3d p-5 flex flex-col justify-between space-y-3 relative ${status.code === 'h1' ? 'border-amber-400 border-2' : ''}`;
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between text-xs mb-2">
+                            <span class="font-extrabold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                                ${note.number}
+                            </span>
+                            <span class="text-slate-400 font-medium">
+                                <i class="fas fa-clock mr-1"></i>Dibuat: ${note.createdAt}
+                            </span>
+                        </div>
+
+                        <h3 class="font-extrabold text-slate-800 text-lg leading-snug mb-2">${escapeHTML(note.title)}</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed mb-3 line-clamp-3">${escapeHTML(note.content)}</p>
+                    </div>
+
+                    <div class="space-y-3 pt-2 border-t border-slate-100">
+                        <div class="flex flex-wrap items-center justify-between text-xs gap-1">
+                            <div class="text-slate-600 font-semibold">
+                                <i class="fas fa-calendar-alt text-blue-600 mr-1"></i>${formatDateIndo(note.eventDate)} 
+                                <span class="text-slate-400 font-normal">(${note.eventTime} WIB)</span>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-[11px] border ${status.colorClass}">
+                                ${status.label}
+                            </span>
+                        </div>
+
+                        <!-- Baris Tombol Aksi Quick Send -->
+                        <div class="flex items-center justify-between gap-1.5 pt-1">
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="quickSendEmail('${note.id}')" class="btn-3d px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 border border-blue-200" title="Kirim via Email">
+                                    <i class="fas fa-envelope"></i> Email
+                                </button>
+                                <button onclick="quickSendWA('${note.id}')" class="btn-3d px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold flex items-center gap-1 border border-emerald-200" title="Kirim via WhatsApp">
+                                    <i class="fab fa-whatsapp text-sm"></i> WA
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button onclick="editNote('${note.id}')" class="btn-3d w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg flex items-center justify-center text-xs" title="Edit">
+                                    <i class="fas fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="askDeleteNote('${note.id}')" class="btn-3d w-8 h-8 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg flex items-center justify-center text-xs" title="Hapus">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        /* ================= RENDER FORM & EDITING ================= */
+        function openFormNew() {
+            resetForm();
+            const ctFormatted = 'CT-' + String(nextNoteCounter).padStart(3, '0');
+            document.getElementById('form-ct-num').innerText = ctFormatted;
+            document.getElementById('form-title').innerHTML = `<i class="fas fa-plus-circle text-blue-600"></i> Buat Catatan Baru`;
+            
+            // Auto fill date & time default
+            const todayStr = getFormattedDateStr(new Date());
+            document.getElementById('input-date').value = todayStr;
+            document.getElementById('input-time').value = '09:00';
+            
+            // Load auto-send setting
+            document.getElementById('input-auto-send').checked = globalSettings.autoSendDefault || false;
+
+            updateFormPreview();
+            switchPage('tambah');
+        }
+
+        function editNote(id) {
+            const note = notesData.find(n => n.id === id);
+            if (!note) return;
+
+            document.getElementById('note-id').value = note.id;
+            document.getElementById('form-ct-num').innerText = note.number;
+            document.getElementById('form-title').innerHTML = `<i class="fas fa-pen-to-square text-blue-600"></i> Edit Catatan (${note.number})`;
+            
+            document.getElementById('input-title').value = note.title;
+            document.getElementById('input-content').value = note.content;
+            document.getElementById('input-date').value = note.eventDate;
+            document.getElementById('input-time').value = note.eventTime;
+
+            updateFormPreview();
+            switchPage('tambah');
+        }
+
+        function resetForm() {
+            document.getElementById('note-id').value = '';
+            document.getElementById('note-form').reset();
+            updateFormPreview();
+        }
+
+        /* ================= FORMAT MESSAGE TEMPLATES ================= */
+        function generateNotificationText(number, title, eventDate, eventTime, content) {
+            const statusObj = calculateStatus(eventDate, eventTime);
+            const dateIndo = formatDateIndo(eventDate);
+            const formattedTime = (eventTime || '00:00') + ' WIB';
+            const nowWib = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date());
+
+            return `────────────────────────\n📔 Pengingat Catatan — ${statusObj.label}\n\nNomor: ${number}\nJudul: ${title.toUpperCase()}\nTanggal Kegiatan: ${dateIndo}\nWaktu Pelaksanaan: ${formattedTime}\n\nIsi Catatan:\n${content}\n\n🔔 Status: ${statusObj.label}\n────────────────────────\nDikirim dari Aplikasi CatatanKu — ${nowWib} WIB`;
+        }
+
+        function updateFormPreview() {
+            const ctNum = document.getElementById('form-ct-num').innerText;
+            const title = document.getElementById('input-title').value || '[Judul Catatan]';
+            const content = document.getElementById('input-content').value || '[Isi catatan akan tampil di sini...]';
+            const eventDate = document.getElementById('input-date').value || getFormattedDateStr(new Date());
+            const eventTime = document.getElementById('input-time').value || '09:00';
+
+            const previewText = generateNotificationText(ctNum, title, eventDate, eventTime, content);
+            document.getElementById('preview-box').innerText = previewText;
+
+            // Target contact updates
+            document.getElementById('form-target-email').innerText = globalSettings.targetEmail || 'Belum diisi di Pengaturan';
+            document.getElementById('form-target-wa').innerText = globalSettings.targetWa || 'Belum diisi di Pengaturan';
+        }
+
+        /* ================= PENYIMPANAN CATATAN ================= */
+        function saveNote() {
+            const idInput = document.getElementById('note-id').value;
+            const title = document.getElementById('input-title').value.trim();
+            const content = document.getElementById('input-content').value.trim();
+            const eventDate = document.getElementById('input-date').value;
+            const eventTime = document.getElementById('input-time').value;
+            const isAutoSend = document.getElementById('input-auto-send').checked;
+
+            if (!title || !content || !eventDate || !eventTime) {
+                showToast('Harap lengkapi seluruh kolom formulir!', 'warning');
+                return;
+            }
+
+            const nowStr = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date());
+
+            let currentNote;
+
+            if (idInput) {
+                // Mode Edit
+                const index = notesData.findIndex(n => n.id === idInput);
+                if (index !== -1) {
+                    notesData[index].title = title;
+                    notesData[index].content = content;
+                    notesData[index].eventDate = eventDate;
+                    notesData[index].eventTime = eventTime;
+                    currentNote = notesData[index];
+                }
+                showToast('Catatan berhasil diperbarui!', 'success');
+            } else {
+                // Mode Tambah Baru
+                const ctNum = 'CT-' + String(nextNoteCounter).padStart(3, '0');
+                currentNote = {
+                    id: 'note_' + Date.now(),
+                    number: ctNum,
+                    title: title,
+                    content: content,
+                    eventDate: eventDate,
+                    eventTime: eventTime,
+                    createdAt: nowStr,
+                    notifiedH1: false
+                };
+                notesData.unshift(currentNote);
+                nextNoteCounter++;
+                localStorage.setItem('catatanku_counter', nextNoteCounter);
+                showToast('Catatan baru berhasil disimpan!', 'success');
+            }
+
+            saveNotesToStorage();
+            resetForm();
+            switchPage('beranda');
+
+            // Jika Sakelar "Otomatis Kirim" Aktif
+            if (isAutoSend && currentNote) {
+                setTimeout(() => {
+                    executeSendProcess(currentNote, 'both');
+                }, 400);
+            }
+        }
+
+        function saveNotesToStorage() {
+            localStorage.setItem('catatanku_notes', JSON.stringify(notesData));
+        }
+
+        function checkAndFixCounters() {
+            if (notesData.length > 0 && nextNoteCounter === 1) {
+                nextNoteCounter = notesData.length + 1;
+                localStorage.setItem('catatanku_counter', nextNoteCounter);
+            }
+        }
+
+        /* ================= PENGIRIMAN EMAIL & WHATSAPP ================= */
+        function executeSendProcess(note, type) {
+            const msg = generateNotificationText(note.number, note.title, note.eventDate, note.eventTime, note.content);
+            
+            let emailSent = false;
+            let waSent = false;
+
+            if (type === 'email' || type === 'both') {
+                const emailTarget = globalSettings.targetEmail;
+                if (!emailTarget) {
+                    showToast('Alamat email belum diset di Pengaturan!', 'warning');
+                } else {
+                    const subject = encodeURIComponent(`[CatatanKu] ${note.number} - ${note.title}`);
+                    const body = encodeURIComponent(msg);
+                    window.location.href = `mailto:${emailTarget}?subject=${subject}&body=${body}`;
+                    emailSent = true;
+                }
+            }
+
+            if (type === 'wa' || type === 'both') {
+                const waTarget = formatWAInternational(globalSettings.targetWa);
+                if (!waTarget) {
+                    showToast('Nomor WhatsApp belum diset di Pengaturan!', 'warning');
+                } else {
+                    const encodedMsg = encodeURIComponent(msg);
+                    const waUrl = `https://wa.me/${waTarget}?text=${encodedMsg}`;
+                    window.open(waUrl, '_blank');
+                    waSent = true;
+                }
+            }
+
+            if (emailSent || waSent) {
+                showToast('Pesan notifikasi berhasil disiapkan/dikirim!', 'success');
+            }
+        }
+
+        function quickSendEmail(id) {
+            const note = notesData.find(n => n.id === id);
+            if (note) executeSendProcess(note, 'email');
+        }
+
+        function quickSendWA(id) {
+            const note = notesData.find(n => n.id === id);
+            if (note) executeSendProcess(note, 'wa');
+        }
+
+        function sendViaMailFromForm() {
+            const noteTemp = {
+                number: document.getElementById('form-ct-num').innerText,
+                title: document.getElementById('input-title').value || 'Tanpa Judul',
+                content: document.getElementById('input-content').value || '-',
+                eventDate: document.getElementById('input-date').value || getFormattedDateStr(new Date()),
+                eventTime: document.getElementById('input-time').value || '09:00'
+            };
+            executeSendProcess(noteTemp, 'email');
+        }
+
+        function sendViaWAFromForm() {
+            const noteTemp = {
+                number: document.getElementById('form-ct-num').innerText,
+                title: document.getElementById('input-title').value || 'Tanpa Judul',
+                content: document.getElementById('input-content').value || '-',
+                eventDate: document.getElementById('input-date').value || getFormattedDateStr(new Date()),
+                eventTime: document.getElementById('input-time').value || '09:00'
+            };
+            executeSendProcess(noteTemp, 'wa');
+        }
+
+        /* ================= SISTEM NADA DERING ALARM (WEB AUDIO API) ================= */
+        let currentAudioCtx = null;
+
+        function playRingtoneSound(soundType, volumeLevel = 0.8, shouldLoop = false) {
+            if (soundType === 'silent') return;
+
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+
+                if (currentAudioCtx) {
+                    currentAudioCtx.close();
+                }
+
+                currentAudioCtx = new AudioCtx();
+                const now = currentAudioCtx.currentTime;
+                const masterGain = currentAudioCtx.createGain();
+                masterGain.gain.setValueAtTime(volumeLevel, now);
+                masterGain.connect(currentAudioCtx.destination);
+
+                const playPattern = () => {
+                    const ctx = currentAudioCtx;
+                    if (!ctx || ctx.state === 'closed') return;
+                    const t = ctx.currentTime;
+
+                    if (soundType === 'chime') {
+                        // Soft Chime
+                        const osc1 = ctx.createOscillator();
+                        const osc2 = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc1.frequency.setValueAtTime(523.25, t); // C5
+                        osc2.frequency.setValueAtTime(659.25, t + 0.15); // E5
+                        gain.gain.setValueAtTime(0.4, t);
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+                        osc1.connect(gain); osc2.connect(gain); gain.connect(masterGain);
+                        osc1.start(t); osc1.stop(t + 0.3);
+                        osc2.start(t + 0.15); osc2.stop(t + 1.2);
+
+                    } else if (soundType === 'digital') {
+                        // Digital Alarm
+                        for (let i = 0; i < 3; i++) {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'square';
+                            osc.frequency.setValueAtTime(950, t + (i * 0.12));
+                            gain.gain.setValueAtTime(0.2, t + (i * 0.12));
+                            gain.gain.exponentialRampToValueAtTime(0.001, t + (i * 0.12) + 0.08);
+                            osc.connect(gain); gain.connect(masterGain);
+                            osc.start(t + (i * 0.12)); osc.stop(t + (i * 0.12) + 0.08);
+                        }
+
+                    } else if (soundType === 'gentle') {
+                        // Gentle Bell
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(587.33, t); // D5
+                        osc.frequency.exponentialRampToValueAtTime(880, t + 0.4); // A5
+                        gain.gain.setValueAtTime(0.5, t);
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
+                        osc.connect(gain); gain.connect(masterGain);
+                        osc.start(t); osc.stop(t + 1.5);
+
+                    } else if (soundType === 'beep') {
+                        // Synth Beep
+                        [0, 0.15].forEach(delay => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(1046.50, t + delay); // C6
+                            gain.gain.setValueAtTime(0.3, t + delay);
+                            gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.1);
+                            osc.connect(gain); gain.connect(masterGain);
+                            osc.start(t + delay); osc.stop(t + delay + 0.1);
+                        });
+
+                    } else if (soundType === 'marimba') {
+                        // Marimba Melodic
+                        const notes = [523.25, 659.25, 783.99, 1046.50];
+                        notes.forEach((freq, idx) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'triangle';
+                            osc.frequency.setValueAtTime(freq, t + (idx * 0.1));
+                            gain.gain.setValueAtTime(0.5, t + (idx * 0.1));
+                            gain.gain.exponentialRampToValueAtTime(0.001, t + (idx * 0.1) + 0.35);
+                            osc.connect(gain); gain.connect(masterGain);
+                            osc.start(t + (idx * 0.1)); osc.stop(t + (idx * 0.1) + 0.35);
+                        });
+
+                    } else if (soundType === 'radar') {
+                        // Radar Pulse
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(1400, t);
+                        osc.frequency.linearRampToValueAtTime(400, t + 0.3);
+                        gain.gain.setValueAtTime(0.3, t);
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+                        osc.connect(gain); gain.connect(masterGain);
+                        osc.start(t); osc.stop(t + 0.35);
+
+                    } else if (soundType === 'retrowave') {
+                        // Retro Wave 8-Bit
+                        const freqs = [220, 330, 440, 554.37, 659.25];
+                        freqs.forEach((freq, idx) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'square';
+                            osc.frequency.setValueAtTime(freq, t + (idx * 0.08));
+                            gain.gain.setValueAtTime(0.15, t + (idx * 0.08));
+                            gain.gain.exponentialRampToValueAtTime(0.001, t + (idx * 0.08) + 0.1);
+                            osc.connect(gain); gain.connect(masterGain);
+                            osc.start(t + (idx * 0.08)); osc.stop(t + (idx * 0.08) + 0.1);
+                        });
+
+                    } else if (soundType === 'crystal') {
+                        // Crystal Drop
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(1760, t); // A6
+                        gain.gain.setValueAtTime(0.6, t);
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+                        osc.connect(gain); gain.connect(masterGain);
+                        osc.start(t); osc.stop(t + 1.8);
+
+                    } else if (soundType === 'classic') {
+                        // Classic Phone Ring
+                        for (let i = 0; i < 2; i++) {
+                            const osc1 = ctx.createOscillator();
+                            const osc2 = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc1.frequency.setValueAtTime(440, t + (i * 0.15));
+                            osc2.frequency.setValueAtTime(480, t + (i * 0.15));
+                            gain.gain.setValueAtTime(0.2, t + (i * 0.15));
+                            gain.gain.exponentialRampToValueAtTime(0.001, t + (i * 0.15) + 0.12);
+                            osc1.connect(gain); osc2.connect(gain); gain.connect(masterGain);
+                            osc1.start(t + (i * 0.15)); osc1.stop(t + (i * 0.15) + 0.12);
+                            osc2.start(t + (i * 0.15)); osc2.stop(t + (i * 0.15) + 0.12);
+                        }
+                    }
+                };
+
+                playPattern();
+
+                if (shouldLoop) {
+                    let loopCount = 0;
+                    const intervalId = setInterval(() => {
+                        loopCount++;
+                        if (loopCount >= 3 || !currentAudioCtx || currentAudioCtx.state === 'closed') {
+                            clearInterval(intervalId);
+                        } else {
+                            playPattern();
+                        }
+                    }, 1500);
+                }
+
+            } catch (e) {
+                console.error("Audio Synthesis Error:", e);
+            }
+        }
+
+        function testCurrentRingtone() {
+            const tone = document.getElementById('setting-ringtone').value;
+            const vol = parseFloat(document.getElementById('setting-volume').value);
+            const loop = document.getElementById('setting-loop-ringtone').checked;
+            playRingtoneSound(tone, vol, loop);
+            showToast(`Memutar pratinjau nada dering: ${tone.toUpperCase()}`, 'info');
+        }
+
+        /* ================= BACKGROUND REMINDER CHECKER & BROWSER NOTIFICATION ================= */
+        function startReminderIntervalChecker() {
+            setInterval(() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                notesData.forEach(note => {
+                    if (!note.eventDate) return;
+                    const targetDate = new Date(note.eventDate + 'T00:00:00');
+                    targetDate.setHours(0, 0, 0, 0);
+
+                    const diffTime = targetDate - today;
+                    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                    // Jika H-1 dan belum pernah dipicu bunyi alarmnya
+                    if (diffDays === 1 && !note.notifiedH1) {
+                        note.notifiedH1 = true;
+                        saveNotesToStorage();
+
+                        // Bunyikan Alarm
+                        playRingtoneSound(globalSettings.ringtone, globalSettings.volume, globalSettings.loopRingtone);
+
+                        // Toast UI
+                        showToast(`🔔 ALARM H-1: "${note.title}" besok!`, 'warning');
+
+                        // Browser Notification API
+                        if ("Notification" in window && Notification.permission === "granted") {
+                            new Notification("⚠️ Pengingat H-1 CatatanKu", {
+                                body: `${note.number}: "${note.title}" jatuh tempo besok (${formatDateIndo(note.eventDate)} pukul ${note.eventTime} WIB).`,
+                                icon: 'https://cdn-icons-png.flaticon.com/512/3602/3602123.png'
+                            });
+                        }
+                    }
+                });
+            }, 15000); // Cek setiap 15 detik
+        }
+
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                showToast("Browser Anda tidak mendukung Web Notifications.", "warning");
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    showToast("Izin notifikasi browser berhasil diberikan!", "success");
+                } else {
+                    showToast("Izin notifikasi ditolak.", "warning");
+                }
+            });
+        }
+
+        /* ================= PENGATURAN KALENDER BULANAN ================= */
+        function renderCalendar() {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+
+            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            document.getElementById('calendar-month-year').innerText = `${monthNames[month]} ${year}`;
+
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const lastDay = new Date(year, month + 1, 0).getDate();
+
+            const container = document.getElementById('calendar-days');
+            container.innerHTML = '';
+
+            // Blank days
+            for (let x = 0; x < firstDayIndex; x++) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'h-10 md:h-12';
+                container.appendChild(emptyDiv);
+            }
+
+            // Fill Month Days
+            for (let day = 1; day <= lastDay; day++) {
+                const dateMonthStr = String(month + 1).padStart(2, '0');
+                const dateDayStr = String(day).padStart(2, '0');
+                const fullDateStr = `${year}-${dateMonthStr}-${dateDayStr}`;
+
+                // Check notes on this date
+                const notesOnDate = notesData.filter(n => n.eventDate === fullDateStr);
+                const hasNotes = notesOnDate.length > 0;
+
+                let dayStatus = 'normal';
+                if (hasNotes) {
+                    notesOnDate.forEach(n => {
+                        const st = calculateStatus(n.eventDate, n.eventTime);
+                        if (st.code === 'h1') dayStatus = 'h1';
+                        else if (st.code === 'today' && dayStatus !== 'h1') dayStatus = 'today';
+                        else if (st.code === 'expired' && dayStatus === 'normal') dayStatus = 'expired';
+                        else if (st.code === 'safe' && dayStatus === 'normal') dayStatus = 'safe';
+                    });
+                }
+
+                const dayBox = document.createElement('div');
+                let bgStyle = 'bg-white text-slate-700 hover:bg-slate-100';
+                
+                if (fullDateStr === selectedCalendarDateStr) {
+                    bgStyle = 'bg-blue-600 text-white font-bold ring-2 ring-blue-400';
+                } else if (dayStatus === 'h1') {
+                    bgStyle = 'bg-amber-100 text-amber-900 font-bold border border-amber-300';
+                } else if (dayStatus === 'today') {
+                    bgStyle = 'bg-emerald-100 text-emerald-900 font-bold border border-emerald-300';
+                } else if (dayStatus === 'expired') {
+                    bgStyle = 'bg-red-50 text-red-700 border border-red-200';
+                } else if (hasNotes) {
+                    bgStyle = 'bg-blue-50 text-blue-900 font-bold border border-blue-200';
+                }
+
+                dayBox.className = `h-10 md:h-12 rounded-xl flex flex-col items-center justify-center cursor-pointer transition text-xs md:text-sm relative shadow-sm ${bgStyle}`;
+                dayBox.innerText = day;
+
+                // Titik Penanda Catatan (Dot Indicator)
+                if (hasNotes && fullDateStr !== selectedCalendarDateStr) {
+                    const dot = document.createElement('span');
+                    dot.className = 'w-1.5 h-1.5 rounded-full bg-blue-600 absolute bottom-1';
+                    if (dayStatus === 'h1') dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 absolute bottom-1';
+                    dayBox.appendChild(dot);
+                }
+
+                dayBox.onclick = () => {
+                    selectedCalendarDateStr = fullDateStr;
+                    renderCalendar();
+                    renderCalendarNotesList(fullDateStr);
+                };
+
+                container.appendChild(dayBox);
+            }
+
+            renderCalendarNotesList(selectedCalendarDateStr);
+        }
+
+        function changeMonth(delta) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function renderCalendarNotesList(dateStr) {
+            const container = document.getElementById('calendar-notes-list');
+            document.getElementById('selected-date-title').innerHTML = `
+                <i class="fas fa-calendar-day text-blue-600"></i> Catatan Tanggal: ${formatDateIndo(dateStr)}
+            `;
+            container.innerHTML = '';
+
+            const list = notesData.filter(n => n.eventDate === dateStr);
+
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-1 md:col-span-2 text-center py-8 bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs">
+                        Tidak ada agenda atau catatan pada tanggal ini.
+                    </div>
+                `;
+                return;
+            }
+
+            list.forEach(note => {
+                const status = calculateStatus(note.eventDate, note.eventTime);
+                const item = document.createElement('div');
+                item.className = 'card-3d p-4 space-y-2';
+                item.innerHTML = `
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-extrabold text-blue-600">${note.number}</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] ${status.colorClass}">${status.label}</span>
+                    </div>
+                    <h4 class="font-bold text-slate-800 text-sm">${escapeHTML(note.title)}</h4>
+                    <p class="text-xs text-slate-600 line-clamp-2">${escapeHTML(note.content)}</p>
+                    <div class="flex items-center justify-between pt-2 text-xs border-t border-slate-100">
+                        <span class="text-slate-500 font-medium"><i class="fas fa-clock mr-1"></i>${note.eventTime} WIB</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="quickSendWA('${note.id}')" class="text-emerald-600 hover:underline font-bold text-xs"><i class="fab fa-whatsapp"></i> WA</button>
+                            <button onclick="editNote('${note.id}')" class="text-blue-600 hover:underline font-bold text-xs"><i class="fas fa-edit"></i> Edit</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        /* ================= PENGATURAN UI & KONTAK GLOBAL ================= */
+        function loadSettingsToUI() {
+            document.getElementById('setting-email').value = globalSettings.targetEmail || '';
+            document.getElementById('setting-wa').value = globalSettings.targetWa || '';
+            document.getElementById('setting-auto-send-default').checked = globalSettings.autoSendDefault || false;
+            document.getElementById('setting-ringtone').value = globalSettings.ringtone || 'chime';
+            document.getElementById('setting-volume').value = globalSettings.volume || 0.8;
+            document.getElementById('setting-loop-ringtone').checked = globalSettings.loopRingtone || false;
+        }
+
+        function saveContactSettings() {
+            globalSettings.targetEmail = document.getElementById('setting-email').value.trim();
+            globalSettings.targetWa = document.getElementById('setting-wa').value.trim();
+            globalSettings.autoSendDefault = document.getElementById('setting-auto-send-default').checked;
+            globalSettings.ringtone = document.getElementById('setting-ringtone').value;
+            globalSettings.volume = parseFloat(document.getElementById('setting-volume').value);
+            globalSettings.loopRingtone = document.getElementById('setting-loop-ringtone').checked;
+
+            localStorage.setItem('catatanku_settings', JSON.stringify(globalSettings));
+            showToast('Pengaturan kontak & alarm berhasil disimpan!', 'success');
+        }
+
+        /* ================= DIALOG KONFIRMASI HAPUS & RESET ================= */
+        let pendingDeleteId = null;
+
+        function askDeleteNote(id) {
+            pendingDeleteId = id;
+            document.getElementById('modal-title').innerText = "Hapus Catatan ini?";
+            document.getElementById('modal-body').innerText = "Catatan yang dihapus tidak dapat dikembalikan lagi.";
+            document.getElementById('modal-confirm-btn').onclick = confirmExecuteDeleteNote;
+            document.getElementById('modal-backdrop').classList.remove('hidden');
+        }
+
+        function confirmExecuteDeleteNote() {
+            if (pendingDeleteId) {
+                notesData = notesData.filter(n => n.id !== pendingDeleteId);
+                saveNotesToStorage();
+                renderBeranda();
+                showToast('Catatan berhasil dihapus!', 'info');
+            }
+            closeModalDialog();
+        }
+
+        function confirmResetAllData() {
+            document.getElementById('modal-title').innerText = "Hapus SELURUH Data Aplikasi?";
+            document.getElementById('modal-body').innerText = "Semua catatan, penomoran CT-XXX, dan pengaturan kontak akan direset total!";
+            document.getElementById('modal-confirm-btn').onclick = () => {
+                localStorage.clear();
+                notesData = [];
+                globalSettings = { targetEmail: '', targetWa: '', autoSendDefault: false, ringtone: 'chime', volume: 0.8, loopRingtone: false };
+                nextNoteCounter = 1;
+                renderBeranda();
+                loadSettingsToUI();
+                closeModalDialog();
+                showToast('Seluruh data aplikasi berhasil direset!', 'success');
+            };
+            document.getElementById('modal-backdrop').classList.remove('hidden');
+        }
+
+        function closeModalDialog() {
+            document.getElementById('modal-backdrop').classList.add('hidden');
+            pendingDeleteId = null;
+        }
+
+        /* ================= EKSPOR / IMPOR JSON ================= */
+        function exportDataJSON() {
+            const backupObj = {
+                notes: notesData,
+                settings: globalSettings,
+                counter: nextNoteCounter,
+                exportAt: new Date().toISOString()
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObj, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `catatanku_backup_${getFormattedDateStr(new Date())}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('File cadangan JSON berhasil diunduh!', 'success');
+        }
+
+        function importDataJSON(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function (e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.notes && Array.isArray(parsed.notes)) {
+                        notesData = parsed.notes;
+                        if (parsed.settings) globalSettings = parsed.settings;
+                        if (parsed.counter) nextNoteCounter = parsed.counter;
+
+                        saveNotesToStorage();
+                        localStorage.setItem('catatanku_settings', JSON.stringify(globalSettings));
+                        localStorage.setItem('catatanku_counter', nextNoteCounter);
+
+                        renderBeranda();
+                        loadSettingsToUI();
+                        showToast('Data berhasil dipulihkan dari file JSON!', 'success');
+                    } else {
+                        showToast('Format file JSON tidak valid!', 'warning');
+                    }
+                } catch (err) {
+                    showToast('Gagal membaca file JSON!', 'warning');
+                }
+            };
+            if (event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0]);
+            }
+        }
+
+        /* ================= UTILITY HELPER FUNCTIONS ================= */
+        function formatDateIndo(dateStr) {
+            if (!dateStr) return '-';
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+            return `${parts[2]} ${months[parseInt(parts[1]) - 1]} ${parts[0]}`;
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.innerText = msg;
+
+            if (type === 'success') toastIcon.className = 'fas fa-check-circle text-emerald-400 text-xl';
+            else if (type === 'warning') toastIcon.className = 'fas fa-exclamation-triangle text-amber-400 text-xl';
+            else toastIcon.className = 'fas fa-info-circle text-blue-400 text-xl';
+
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => { hideToast(); }, 3500);
+        }
+
+        function hideToast() {
+            document.getElementById('toast').classList.add('translate-x-full');
+        }
+    </script>
+</body>
+</html>
